@@ -26,7 +26,8 @@ const T = {
   text1: '#1E1E2D', text2: '#6E7191', text3: '#A0A3BD',
   accent: '#5B6CFF', accentBg: '#EEEEFF',
   cta: '#F97316', green: '#00BA88', greenBg: '#E6F9F1',
-  red: '#FF6B6B', redBg: '#FFF0F0', orange: '#FFAA33', orangeBg: '#FFF5E6',
+  red: '#FF6B6B', redBg: '#FFF0F0',
+  orange: '#FFAA33', orangeBg: '#FFF5E6',
   f: "'Inter','Heebo',sans-serif",
 };
 
@@ -37,27 +38,70 @@ function toNum(v: any): number {
   return parseFloat(v.replace(/[,₪\s]/g, '')) || 0;
 }
 
+/** Fix #4: Improved category detection with chapter headers */
+let currentChapterCategory = 'other';
+
+function detectCategoryFromChapter(line: string): string | null {
+  const d = line.trim();
+  // Detect chapter/section headers
+  const chapterPatterns: [RegExp, string][] = [
+    [/^(פרק|סעיף)?\s*[א-ת0-9.\-]*\s*(עבודות\s*עפר|חפירה|מילוי|הידוק|יישור|חישוף|פיתוח)/i, 'labor'],
+    [/^(פרק|סעיף)?\s*[א-ת0-9.\-]*\s*(בטון|יציקה|כלונס|ארמטורה|ברזל|זיון|שלד)/i, 'materials'],
+    [/^(פרק|סעיף)?\s*[א-ת0-9.\-]*\s*(ניקוז|צינור|שוחה|ביוב|מים|תשתית|אינסטלציה)/i, 'materials'],
+    [/^(פרק|סעיף)?\s*[א-ת0-9.\-]*\s*(אספלט|ריצוף|משתלבת|גינון|שפה|מדרכ)/i, 'materials'],
+    [/^(פרק|סעיף)?\s*[א-ת0-9.\-]*\s*(הריסה|פירוק|פינוי|סילוק|פסולת)/i, 'transport'],
+    [/^(פרק|סעיף)?\s*[א-ת0-9.\-]*\s*(קידוח|בנטונייט|כלונס|בור\s*חלחול)/i, 'equipment'],
+    [/^(פרק|סעיף)?\s*[א-ת0-9.\-]*\s*(הובלה|ציוד|מנוף|מחפר|משאית|טרקטור)/i, 'equipment'],
+    [/^(פרק|סעיף)?\s*[א-ת0-9.\-]*\s*(עבודה|כ"א|שעות|ימי)/i, 'labor'],
+    [/^(פרק|סעיף)?\s*[א-ת0-9.\-]*\s*(קבלן|קבלני\s*משנה|שירותי)/i, 'subcontractor'],
+    [/^(פרק|סעיף)?\s*[א-ת0-9.\-]*\s*(היתר|רישוי|אגרה|מיסים|ביטוח)/i, 'permits'],
+  ];
+  for (const [re, cat] of chapterPatterns) {
+    if (re.test(d)) return cat;
+  }
+  return null;
+}
+
 function detectCategory(desc: string): string {
   const d = desc.toLowerCase();
+  // Check if this is a chapter header — update context
+  const chapterCat = detectCategoryFromChapter(desc);
+  if (chapterCat) {
+    currentChapterCategory = chapterCat;
+    return chapterCat;
+  }
+
   const map: [string[], string][] = [
-    [['חפירה', 'עפר', 'מילוי', 'הידוק', 'מצע', 'יישור', 'חישוף'], 'labor'],
-    [['בטון', 'יציקה', 'כלונס', 'ארמטורה', 'ברזל', 'זיון'], 'materials'],
-    [['ניקוז', 'צינור', 'שוחה', 'ביוב', 'מים', 'שרוול', 'תעלה'], 'transport'],
-    [['אספלט', 'ריצוף', 'משתלבת', 'אבן שפה', 'מרצפ'], 'materials'],
-    [['הריסה', 'פירוק', 'פינוי', 'פסולת', 'סילוק'], 'transport'],
-    [['מקדח', 'קידוח', 'בנטונייט', 'בור חלחול'], 'equipment'],
-    [['מנוף', 'מחפר', 'טרקטור', 'משאית', 'הובלה', 'ציוד'], 'equipment'],
+    // עבודות עפר ופיתוח
+    [['חפירה', 'עפר', 'מילוי', 'הידוק', 'מצע', 'יישור', 'חישוף', 'חציבה', 'כרייה', 'פילוס', 'גריסה', 'עבודות עפר', 'פיתוח'], 'labor'],
+    // בטון ומבנים
+    [['בטון', 'יציקה', 'כלונס', 'ארמטורה', 'ברזל', 'זיון', 'תבנית', 'טפסות', 'דופן', 'קורה', 'עמוד', 'יסוד', 'רצפה', 'תקרה'], 'materials'],
+    // ניקוז ותשתיות
+    [['ניקוז', 'צינור', 'שוחה', 'ביוב', 'מים', 'שרוול', 'תעלה', 'מנהרה', 'תשתית', 'אינסטל'], 'materials'],
+    // כבישים וריצוף
+    [['אספלט', 'ריצוף', 'משתלבת', 'אבן שפה', 'מרצפ', 'מדרכה', 'כביש', 'גינון'], 'materials'],
+    // הריסה ופינוי
+    [['הריסה', 'פירוק', 'פינוי', 'פסולת', 'סילוק', 'גריסה', 'ניקוי', 'הובלת פסולת'], 'transport'],
+    // הובלה וציוד
+    [['הובלה', 'הובלת ציוד', 'שינוע', 'העברה', 'משלוח'], 'transport'],
+    // ציוד וקידוח
+    [['מקדח', 'קידוח', 'בנטונייט', 'בור חלחול', 'מנוף', 'מחפר', 'טרקטור', 'משאית', 'ציוד', 'באגר', 'JCB', 'בובקט', 'מדחס', 'גנרטור', 'משאבה'], 'equipment'],
+    // קבלני משנה
+    [['קבלן', 'קבלני משנה', 'שירותי'], 'subcontractor'],
+    // היתרים
+    [['היתר', 'רישוי', 'אגרה', 'ביטוח', 'מדידה', 'פיקוח'], 'permits'],
   ];
   for (const [keywords, cat] of map) {
     if (keywords.some(k => d.includes(k))) return cat;
   }
-  return 'other';
+  // Fallback: use current chapter context
+  return currentChapterCategory;
 }
 
-const KNOWN_DESC = ['תיאור', 'פריט', 'שם', 'description', 'item', 'סעיף', 'פירוט'];
-const KNOWN_UNIT = ['יחידה', 'יח', 'unit'];
+const KNOWN_DESC = ['תיאור', 'פריט', 'שם', 'description', 'item', 'סעיף', 'פירוט', 'עבודה'];
+const KNOWN_UNIT = ['יחידה', 'יח', 'unit', "יח'"];
 const KNOWN_QTY = ['כמות', 'quantity', 'qty'];
-const KNOWN_PRICE = ['מחיר', 'price', 'עלות', 'מחיר ליחידה'];
+const KNOWN_PRICE = ['מחיר', 'price', 'עלות', 'מחיר ליחידה', 'תעריף'];
 
 function detectCol(headers: string[], known: string[]): number {
   for (let i = 0; i < headers.length; i++) {
@@ -83,9 +127,9 @@ export default function SmartImport({ projectId, onClose, onImported }: SmartImp
     setLoading(true);
     setLoadMsg('קורא קובץ...');
     setRows([]);
+    currentChapterCategory = 'other'; // reset chapter context
 
     const ext = file.name.split('.').pop()?.toLowerCase() || '';
-
     try {
       let parsed: ImportRow[] = [];
 
@@ -105,14 +149,14 @@ export default function SmartImport({ projectId, onClose, onImported }: SmartImp
       const seen = new Set<string>();
       parsed = parsed.filter(r => {
         const key = r.description.trim().replace(/\s+/g, ' ').toLowerCase();
-        if (seen.has(key)) return false;
+        if (!key || key.length < 3 || seen.has(key)) return false;
         seen.add(key);
         return true;
       });
 
       setRows(parsed);
       if (parsed.length === 0) showToast('⚠ לא נמצאו שורות בקובץ');
-      else showToast(`✅ נקלטו ${parsed.length} שורות`);
+      else showToast(\`✅ נקלטו \${parsed.length} שורות\`);
     } catch (e: any) {
       showToast('❌ שגיאה: ' + e.message);
     } finally {
@@ -131,7 +175,6 @@ export default function SmartImport({ projectId, onClose, onImported }: SmartImp
     const data: any[][] = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: '' });
     if (data.length < 2) return [];
 
-    // Find header row
     let hIdx = 0;
     for (let i = 0; i < Math.min(5, data.length); i++) {
       if (data[i].filter((c: any) => String(c).trim()).length >= 3) { hIdx = i; break; }
@@ -143,12 +186,19 @@ export default function SmartImport({ projectId, onClose, onImported }: SmartImp
     const uCol = detectCol(hdrs, KNOWN_UNIT);
     const qCol = detectCol(hdrs, KNOWN_QTY);
     const pCol = detectCol(hdrs, KNOWN_PRICE);
-    // Fallback: longest text column = description
-    const descCol = dCol >= 0 ? dCol : (() => { let mx = 0, mi = 0; hdrs.forEach((_: string, i: number) => { const l = body.slice(0, 5).reduce((s: number, r: any[]) => s + String(r[i] || '').length, 0); if (l > mx) { mx = l; mi = i; } }); return mi; })();
+
+    const descCol = dCol >= 0 ? dCol : (() => {
+      let mx = 0, mi = 0;
+      hdrs.forEach((_: string, i: number) => {
+        const l = body.slice(0, 5).reduce((s: number, r: any[]) => s + String(r[i] || '').length, 0);
+        if (l > mx) { mx = l; mi = i; }
+      });
+      return mi;
+    })();
 
     return body.map((row: any[]) => {
       const desc = String(row[descCol] || '').trim();
-      if (!desc || desc.length < 3) return null;
+      if (!desc || desc.length < 2) return null;
       return {
         description: desc,
         unit: uCol >= 0 ? String(row[uCol] || '').trim() : '',
@@ -160,7 +210,7 @@ export default function SmartImport({ projectId, onClose, onImported }: SmartImp
     }).filter(Boolean) as ImportRow[];
   }
 
-  // ─── PDF ───
+  // ─── PDF (Fix #5: detect graphic PDFs) ───
   async function parsePdf(file: File): Promise<ImportRow[]> {
     setLoadMsg('קורא PDF...');
     let lib = (window as any).pdfjsLib;
@@ -168,19 +218,25 @@ export default function SmartImport({ projectId, onClose, onImported }: SmartImp
       await new Promise<void>((res, rej) => {
         const s = document.createElement('script');
         s.src = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js';
-        s.onload = () => { (window as any).pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js'; res(); };
-        s.onerror = rej; document.head.appendChild(s);
+        s.onload = () => {
+          (window as any).pdfjsLib.GlobalWorkerOptions.workerSrc =
+            'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+          res();
+        };
+        s.onerror = rej;
+        document.head.appendChild(s);
       });
       lib = (window as any).pdfjsLib;
     }
+
     const buf = await file.arrayBuffer();
     const pdf = await lib.getDocument({ data: buf }).promise;
     const allText: string[] = [];
+
     for (let p = 1; p <= pdf.numPages; p++) {
-      setLoadMsg(`קורא עמוד ${p}/${pdf.numPages}...`);
+      setLoadMsg(\`קורא עמוד \${p}/\${pdf.numPages}...\`);
       const page = await pdf.getPage(p);
       const tc = await page.getTextContent();
-      // Collect all text items, join by position
       let line = '';
       for (const item of tc.items) {
         const str = (item as any).str || '';
@@ -192,10 +248,24 @@ export default function SmartImport({ projectId, onClose, onImported }: SmartImp
       }
       if (line.trim()) allText.push(line.trim());
     }
-    // Return ALL lines with length > 2 — no aggressive filtering
+
+    // Fix #5: If very few text lines found, this is likely a graphic/plan PDF
+    const meaningfulLines = allText.filter(l => l.length > 5);
+    if (meaningfulLines.length < 3) {
+      showToast('📄 זהו PDF גרפי (תכנית/מפרט) — מומלץ להעלות כמסמך בטאב "מסמכים"');
+      return [];
+    }
+
     return allText
       .filter(l => l.length > 2)
-      .map(l => ({ description: l, unit: '', quantity: 0, unitPrice: 0, category: detectCategory(l), checked: true }));
+      .map(l => ({
+        description: l,
+        unit: '',
+        quantity: 0,
+        unitPrice: 0,
+        category: detectCategory(l),
+        checked: true,
+      }));
   }
 
   // ─── Word ───
@@ -205,7 +275,10 @@ export default function SmartImport({ projectId, onClose, onImported }: SmartImp
     const buf = await file.arrayBuffer();
     const result = await mammoth.extractRawText({ arrayBuffer: buf });
     return result.value.split('\n').map(l => l.trim()).filter(l => l.length > 2)
-      .map(l => ({ description: l, unit: '', quantity: 0, unitPrice: 0, category: detectCategory(l), checked: true }));
+      .map(l => ({
+        description: l, unit: '', quantity: 0, unitPrice: 0,
+        category: detectCategory(l), checked: true,
+      }));
   }
 
   // ─── Image (OCR) ───
@@ -217,7 +290,8 @@ export default function SmartImport({ projectId, onClose, onImported }: SmartImp
         const s = document.createElement('script');
         s.src = 'https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js';
         s.onload = () => { Tess = (window as any).Tesseract; res(); };
-        s.onerror = rej; document.head.appendChild(s);
+        s.onerror = rej;
+        document.head.appendChild(s);
       });
     }
     setLoadMsg('מזהה טקסט (OCR)...');
@@ -227,7 +301,10 @@ export default function SmartImport({ projectId, onClose, onImported }: SmartImp
     URL.revokeObjectURL(url);
     await worker.terminate();
     return data.text.split('\n').map((l: string) => l.trim()).filter((l: string) => l.length > 2)
-      .map((l: string) => ({ description: l, unit: '', quantity: 0, unitPrice: 0, category: detectCategory(l), checked: true }));
+      .map((l: string) => ({
+        description: l, unit: '', quantity: 0, unitPrice: 0,
+        category: detectCategory(l), checked: true,
+      }));
   }
 
   // ─── Import ───
@@ -236,18 +313,28 @@ export default function SmartImport({ projectId, onClose, onImported }: SmartImp
     if (selected.length === 0) { showToast('⚠ לא נבחרו פריטים'); return; }
     setImporting(true);
     try {
-      // Check for existing duplicates
-      const existing = await api.get<{ description: string }[]>(`/costs/project/${projectId}`);
-      const existingSet = new Set(existing.map(e => e.description.trim().replace(/\s+/g, ' ').toLowerCase()));
-      const items = selected.filter(r => !existingSet.has(r.description.trim().replace(/\s+/g, ' ').toLowerCase()))
-        .map(r => ({ category: r.category, description: r.description, unit: r.unit || UNITS[0], quantity: r.quantity, unit_price: r.unitPrice }));
-      const skipped = selected.length - items.length;
-      if (items.length === 0) { showToast(`⚠ כל הסעיפים כבר קיימים`); setImporting(false); return; }
-      await api.post('/costs/batch', { project_id: projectId, items });
-      showToast(skipped > 0 ? `✅ ${items.length} סעיפים יובאו (${skipped} כפילויות דולגו)` : `✅ ${items.length} סעיפים יובאו`);
-      onImported(); onClose();
-    } catch (e: any) { showToast('❌ ' + e.message); }
-    finally { setImporting(false); }
+      const items = selected.map(r => ({
+        category: r.category,
+        description: r.description,
+        unit: r.unit || UNITS[0],
+        quantity: r.quantity,
+        unit_price: r.unitPrice,
+      }));
+
+      const result = await api.post<{ ok: boolean; count: number; skipped?: number }>('/costs/batch', { project_id: projectId, items });
+
+      if (result.skipped && result.skipped > 0) {
+        showToast(\`✅ \${result.count} סעיפים יובאו (\${result.skipped} כפילויות דולגו)\`);
+      } else {
+        showToast(\`✅ \${result.count} סעיפים יובאו\`);
+      }
+      onImported();
+      onClose();
+    } catch (e: any) {
+      showToast('❌ ' + e.message);
+    } finally {
+      setImporting(false);
+    }
   };
 
   const toggleAll = (v: boolean) => setRows(prev => prev.map(r => ({ ...r, checked: v })));
@@ -258,9 +345,8 @@ export default function SmartImport({ projectId, onClose, onImported }: SmartImp
   return (
     <div style={{ position: 'fixed', inset: 0, background: 'rgba(30,30,45,.3)', backdropFilter: 'blur(6px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 100, padding: 16 }} onClick={onClose}>
       <div style={{ background: T.card, borderRadius: 22, width: '95%', maxWidth: 960, maxHeight: '90vh', display: 'flex', flexDirection: 'column', boxShadow: '0 30px 80px rgba(30,30,60,.15)' }} onClick={e => e.stopPropagation()}>
-
         {/* Header */}
-        <div style={{ padding: '20px 28px', borderBottom: `1.5px solid ${T.border}`, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <div style={{ padding: '20px 28px', borderBottom: \`1.5px solid \${T.border}\`, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <div>
             <div style={{ fontFamily: T.f, fontSize: 20, fontWeight: 800, color: T.text1 }}>הוסף קובץ</div>
             {fileName && <div style={{ fontFamily: T.f, fontSize: 13, color: T.text3, marginTop: 4 }}>📄 {fileName}</div>}
@@ -270,38 +356,28 @@ export default function SmartImport({ projectId, onClose, onImported }: SmartImp
 
         {/* Content */}
         <div style={{ flex: 1, overflow: 'auto', padding: 28 }}>
-
-          {/* Upload zone - always visible if no rows */}
           {rows.length === 0 && !loading && (
-            <div
-              onDrop={e => { e.preventDefault(); setDragOver(false); const f = e.dataTransfer.files[0]; if (f) handleFile(f); }}
-              onDragOver={e => { e.preventDefault(); setDragOver(true); }}
-              onDragLeave={() => setDragOver(false)}
-              style={{
-                border: `2.5px dashed ${dragOver ? T.accent : T.border}`, borderRadius: 20,
-                padding: '48px 40px', textAlign: 'center', cursor: 'pointer',
-                background: dragOver ? T.accentBg : T.bg, transition: 'all .2s',
-              }}
-              onClick={() => fileRef.current?.click()}
-            >
+            <div onDrop={e => { e.preventDefault(); setDragOver(false); const f = e.dataTransfer.files[0]; if (f) handleFile(f); }}
+              onDragOver={e => { e.preventDefault(); setDragOver(true); }} onDragLeave={() => setDragOver(false)}
+              style={{ border: \`2.5px dashed \${dragOver ? T.accent : T.border}\`, borderRadius: 20, padding: '48px 40px', textAlign: 'center', cursor: 'pointer', background: dragOver ? T.accentBg : T.bg, transition: 'all .2s' }}
+              onClick={() => fileRef.current?.click()}>
               <div style={{ fontSize: 48, marginBottom: 16, opacity: .6 }}>📁</div>
               <div style={{ fontFamily: T.f, fontSize: 18, fontWeight: 700, color: T.text1, marginBottom: 8 }}>גרור קובץ או לחץ לבחירה</div>
               <div style={{ fontFamily: T.f, fontSize: 14, color: T.text3, marginBottom: 20 }}>Excel · CSV · PDF · Word · תמונות</div>
-              <div style={{ display: 'inline-flex', padding: '12px 28px', background: `linear-gradient(135deg, ${T.cta}, #EA580C)`, color: '#fff', borderRadius: 14, fontFamily: T.f, fontSize: 14, fontWeight: 700, boxShadow: '0 4px 16px rgba(249,115,22,.25)' }}
+              <div style={{ display: 'inline-flex', padding: '12px 28px', background: \`linear-gradient(135deg, \${T.cta}, #EA580C)\`, color: '#fff', borderRadius: 14, fontFamily: T.f, fontSize: 14, fontWeight: 700, boxShadow: '0 4px 16px rgba(249,115,22,.25)' }}
                 onClick={e => { e.stopPropagation(); fileRef.current?.click(); }}>📂 בחר קובץ</div>
-              <input ref={fileRef} type="file" accept=".xlsx,.xls,.csv,.pdf,.docx,.doc,.jpg,.jpeg,.png,.webp,.bmp,.tif,.tiff" onChange={e => { const f = e.target.files?.[0]; if (f) handleFile(f); e.target.value = ''; }} style={{ display: 'none' }} />
+              <input ref={fileRef} type="file" accept=".xlsx,.xls,.csv,.pdf,.docx,.doc,.jpg,.jpeg,.png,.webp,.bmp,.tif,.tiff"
+                onChange={e => { const f = e.target.files?.[0]; if (f) handleFile(f); e.target.value = ''; }} style={{ display: 'none' }} />
             </div>
           )}
 
-          {/* Loading */}
           {loading && (
             <div style={{ textAlign: 'center', padding: 48 }}>
-              <div style={{ width: 40, height: 40, border: `3px solid ${T.border}`, borderTopColor: T.accent, borderRadius: '50%', animation: 'spin .6s linear infinite', margin: '0 auto 16px' }} />
+              <div style={{ width: 40, height: 40, border: \`3px solid \${T.border}\`, borderTopColor: T.accent, borderRadius: '50%', animation: 'spin .6s linear infinite', margin: '0 auto 16px' }} />
               <div style={{ fontFamily: T.f, fontSize: 16, fontWeight: 700, color: T.text1 }}>{loadMsg}</div>
             </div>
           )}
 
-          {/* Results table */}
           {rows.length > 0 && (
             <div>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
@@ -309,13 +385,12 @@ export default function SmartImport({ projectId, onClose, onImported }: SmartImp
                   {selectedCount} מתוך {rows.length} נבחרו
                 </div>
                 <div style={{ display: 'flex', gap: 8 }}>
-                  <button onClick={() => { setRows([]); setFileName(''); }} style={{ fontFamily: T.f, padding: '6px 14px', borderRadius: 8, border: `1.5px solid ${T.border}`, background: T.card, fontSize: 12, fontWeight: 600, color: T.text3, cursor: 'pointer' }}>📂 קובץ אחר</button>
-                  <button onClick={() => toggleAll(true)} style={{ fontFamily: T.f, padding: '6px 14px', borderRadius: 8, border: `1.5px solid ${T.border}`, background: T.card, fontSize: 12, fontWeight: 600, color: T.accent, cursor: 'pointer' }}>בחר הכל</button>
-                  <button onClick={() => toggleAll(false)} style={{ fontFamily: T.f, padding: '6px 14px', borderRadius: 8, border: `1.5px solid ${T.border}`, background: T.card, fontSize: 12, fontWeight: 600, color: T.text3, cursor: 'pointer' }}>בטל הכל</button>
+                  <button onClick={() => { setRows([]); setFileName(''); }} style={{ fontFamily: T.f, padding: '6px 14px', borderRadius: 8, border: \`1.5px solid \${T.border}\`, background: T.card, fontSize: 12, fontWeight: 600, color: T.text3, cursor: 'pointer' }}>📂 קובץ אחר</button>
+                  <button onClick={() => toggleAll(true)} style={{ fontFamily: T.f, padding: '6px 14px', borderRadius: 8, border: \`1.5px solid \${T.border}\`, background: T.card, fontSize: 12, fontWeight: 600, color: T.accent, cursor: 'pointer' }}>בחר הכל</button>
+                  <button onClick={() => toggleAll(false)} style={{ fontFamily: T.f, padding: '6px 14px', borderRadius: 8, border: \`1.5px solid \${T.border}\`, background: T.card, fontSize: 12, fontWeight: 600, color: T.text3, cursor: 'pointer' }}>בטל הכל</button>
                 </div>
               </div>
-
-              <div style={{ overflowX: 'auto', borderRadius: 14, border: `1.5px solid ${T.border}` }}>
+              <div style={{ overflowX: 'auto', borderRadius: 14, border: \`1.5px solid \${T.border}\` }}>
                 <table style={{ width: '100%', borderCollapse: 'collapse', fontFamily: T.f }}>
                   <thead>
                     <tr>
@@ -331,18 +406,9 @@ export default function SmartImport({ projectId, onClose, onImported }: SmartImp
                       <tr key={i} style={{ background: r.checked ? '' : '#F8F8FA' }}>
                         <td style={td}><input type="checkbox" checked={r.checked} onChange={() => toggleRow(i)} style={{ width: 16, height: 16, accentColor: T.accent }} /></td>
                         <td style={{ ...td, fontWeight: 600, color: T.text1, maxWidth: 400, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{r.description}</td>
-                        <td style={td}>
-                          <input value={r.unit} onChange={e => updateRow(i, 'unit', e.target.value)}
-                            style={cellInput} placeholder="יח'" />
-                        </td>
-                        <td style={td}>
-                          <input type="number" min={0} step="any" value={r.quantity || ''} onChange={e => updateRow(i, 'quantity', parseFloat(e.target.value) || 0)}
-                            style={cellInput} placeholder="0" />
-                        </td>
-                        <td style={td}>
-                          <input type="number" min={0} step="any" value={r.unitPrice || ''} onChange={e => updateRow(i, 'unitPrice', parseFloat(e.target.value) || 0)}
-                            style={cellInput} placeholder="0" />
-                        </td>
+                        <td style={td}><input value={r.unit} onChange={e => updateRow(i, 'unit', e.target.value)} style={cellInput} placeholder="יח'" /></td>
+                        <td style={td}><input type="number" min={0} step="any" value={r.quantity || ''} onChange={e => updateRow(i, 'quantity', parseFloat(e.target.value) || 0)} style={cellInput} placeholder="0" /></td>
+                        <td style={td}><input type="number" min={0} step="any" value={r.unitPrice || ''} onChange={e => updateRow(i, 'unitPrice', parseFloat(e.target.value) || 0)} style={cellInput} placeholder="0" /></td>
                       </tr>
                     ))}
                   </tbody>
@@ -353,14 +419,13 @@ export default function SmartImport({ projectId, onClose, onImported }: SmartImp
         </div>
 
         {/* Footer */}
-        <div style={{ padding: '16px 28px', borderTop: `1.5px solid ${T.border}`, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <button onClick={onClose} style={{ fontFamily: T.f, padding: '10px 24px', borderRadius: 12, border: `1.5px solid ${T.border}`, background: T.card, fontSize: 14, fontWeight: 600, color: T.text2, cursor: 'pointer' }}>ביטול</button>
+        <div style={{ padding: '16px 28px', borderTop: \`1.5px solid \${T.border}\`, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <button onClick={onClose} style={{ fontFamily: T.f, padding: '10px 24px', borderRadius: 12, border: \`1.5px solid \${T.border}\`, background: T.card, fontSize: 14, fontWeight: 600, color: T.text2, cursor: 'pointer' }}>ביטול</button>
           {rows.length > 0 && selectedCount > 0 && (
-            <button onClick={doImport} disabled={importing} style={{
-              fontFamily: T.f, padding: '10px 28px', borderRadius: 12, border: 'none',
-              background: `linear-gradient(135deg, ${T.cta}, #EA580C)`, color: '#fff',
-              fontSize: 14, fontWeight: 700, cursor: 'pointer', boxShadow: '0 4px 16px rgba(249,115,22,.25)',
-            }}>{importing ? '...מייבא' : `📥 ייבא ${selectedCount} סעיפים`}</button>
+            <button onClick={doImport} disabled={importing}
+              style={{ fontFamily: T.f, padding: '10px 28px', borderRadius: 12, border: 'none', background: \`linear-gradient(135deg, \${T.cta}, #EA580C)\`, color: '#fff', fontSize: 14, fontWeight: 700, cursor: 'pointer', boxShadow: '0 4px 16px rgba(249,115,22,.25)' }}>
+              {importing ? '...מייבא' : \`📥 ייבא \${selectedCount} סעיפים\`}
+            </button>
           )}
         </div>
       </div>
@@ -371,19 +436,13 @@ export default function SmartImport({ projectId, onClose, onImported }: SmartImp
 const th: React.CSSProperties = {
   padding: '10px 12px', fontSize: 11, fontWeight: 700, color: '#A0A3BD',
   textTransform: 'uppercase', letterSpacing: '.05em', textAlign: 'right',
-  borderBottom: '2px solid #E4E4EE', background: '#FAFAFF',
-  fontFamily: "'Inter','Heebo',sans-serif",
+  borderBottom: '2px solid #E4E4EE', background: '#FAFAFF', fontFamily: "'Inter','Heebo',sans-serif",
 };
-
 const td: React.CSSProperties = {
   padding: '6px 10px', fontSize: 13, color: '#6E7191',
-  borderBottom: '1px solid #E4E4EE',
-  fontFamily: "'Inter','Heebo',sans-serif",
+  borderBottom: '1px solid #E4E4EE', fontFamily: "'Inter','Heebo',sans-serif",
 };
-
 const cellInput: React.CSSProperties = {
-  width: '100%', padding: '4px 8px', borderRadius: 6,
-  border: '1px solid #E4E4EE', fontSize: 13,
-  fontFamily: "'Inter','Heebo',sans-serif",
-  textAlign: 'center', outline: 'none',
+  width: '100%', padding: '4px 8px', borderRadius: 6, border: '1px solid #E4E4EE',
+  fontSize: 13, fontFamily: "'Inter','Heebo',sans-serif", textAlign: 'center', outline: 'none',
 };
