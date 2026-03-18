@@ -15,6 +15,39 @@ function Section({ title, icon, children }: { title: string; icon: string; child
   );
 }
 
+/** Input for numeric-only fields - fixes focus loss bug (#3) */
+function NumericInput({ value, onChange, placeholder, ...rest }: {
+  value: string;
+  onChange: (v: string) => void;
+  placeholder?: string;
+  [k: string]: any;
+}) {
+  return (
+    <input
+      className="form-input"
+      value={value}
+      onChange={e => onChange(e.target.value)}
+      onBlur={e => {
+        const cleaned = e.target.value.replace(/[^0-9\-]/g, '');
+        if (cleaned !== e.target.value) onChange(cleaned);
+      }}
+      onKeyDown={e => {
+        // Allow: backspace, delete, tab, escape, enter, arrows, home, end
+        if ([8, 9, 27, 13, 46, 35, 36, 37, 38, 39, 40].includes(e.keyCode)) return;
+        // Allow: Ctrl+A/C/V/X
+        if ((e.ctrlKey || e.metaKey) && [65, 67, 86, 88].includes(e.keyCode)) return;
+        // Allow: digits and hyphen
+        if (/[0-9\-]/.test(e.key)) return;
+        e.preventDefault();
+      }}
+      placeholder={placeholder}
+      dir="ltr"
+      inputMode="tel"
+      {...rest}
+    />
+  );
+}
+
 interface CompanySettings {
   companyName: string;
   companySubtitle: string;
@@ -39,20 +72,11 @@ const DEFAULTS: CompanySettings = {
   companyName: 'א.א קידוחים ופיתוח',
   companySubtitle: 'עבודות קידוח, בנטונייט, עפר ופיתוח',
   ownerName: 'אליאב אפריאט',
-  phone: '',
-  email: '',
-  address: '',
-  licenseNumber: '',
-  vatId: '',
-  bankName: '',
-  bankBranch: '',
-  bankAccount: '',
-  defaultMargin: 15,
-  defaultOverhead: 0,
-  defaultInsurance: 0,
-  quoteValidDays: 30,
-  paymentTerms: 'שוטף + 30',
-  notes: '',
+  phone: '', email: '', address: '',
+  licenseNumber: '', vatId: '',
+  bankName: '', bankBranch: '', bankAccount: '',
+  defaultMargin: 15, defaultOverhead: 0, defaultInsurance: 0,
+  quoteValidDays: 30, paymentTerms: 'שוטף + 30', notes: '',
 };
 
 const STORAGE_KEY = 'aa-pricing-settings';
@@ -64,8 +88,7 @@ export default function Settings() {
   useEffect(() => {
     const stored = localStorage.getItem(STORAGE_KEY);
     if (stored) {
-      try { setSettings({ ...DEFAULTS, ...JSON.parse(stored) }); }
-      catch { /* ignore */ }
+      try { setSettings({ ...DEFAULTS, ...JSON.parse(stored) }); } catch { /* ignore */ }
     }
   }, []);
 
@@ -91,7 +114,7 @@ export default function Settings() {
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = `pricing-backup-${new Date().toISOString().split('T')[0]}.json`;
+      a.download = \`pricing-backup-\${new Date().toISOString().split('T')[0]}.json\`;
       a.click();
       URL.revokeObjectURL(url);
       showToast('גיבוי הורד בהצלחה');
@@ -111,8 +134,6 @@ export default function Settings() {
       </div>
 
       <div style={{ maxWidth: 720 }}>
-
-        {/* Company Info */}
         <Section title="פרטי חברה" icon="🏢">
           <div className="form-group">
             <label className="form-label">שם חברה</label>
@@ -128,7 +149,7 @@ export default function Settings() {
           </div>
           <div className="form-group">
             <label className="form-label">טלפון</label>
-            <input className="form-input" value={settings.phone} onChange={e => { const v = e.target.value.replace(/[^0-9\-]/g, ''); u('phone', v); }} placeholder="050-0000000" dir="ltr" inputMode="tel" />
+            <NumericInput value={settings.phone} onChange={v => u('phone', v)} placeholder="050-0000000" />
           </div>
           <div className="form-group">
             <label className="form-label">אימייל</label>
@@ -140,15 +161,14 @@ export default function Settings() {
           </div>
           <div className="form-group">
             <label className="form-label">מספר רישיון קבלן</label>
-            <input className="form-input" value={settings.licenseNumber} onChange={e => { const v = e.target.value.replace(/[^0-9]/g, ''); u('licenseNumber', v); }} dir="ltr" inputMode="numeric" />
+            <NumericInput value={settings.licenseNumber} onChange={v => u('licenseNumber', v)} placeholder="" />
           </div>
           <div className="form-group">
             <label className="form-label">ח.פ / ע.מ</label>
-            <input className="form-input" value={settings.vatId} onChange={e => { const v = e.target.value.replace(/[^0-9]/g, ''); u('vatId', v); }} dir="ltr" inputMode="numeric" />
+            <NumericInput value={settings.vatId} onChange={v => u('vatId', v)} placeholder="" />
           </div>
         </Section>
 
-        {/* Bank Details */}
         <Section title="פרטי בנק" icon="🏦">
           <div className="form-group">
             <label className="form-label">שם בנק</label>
@@ -156,15 +176,14 @@ export default function Settings() {
           </div>
           <div className="form-group">
             <label className="form-label">סניף</label>
-            <input className="form-input" value={settings.bankBranch} onChange={e => { const v = e.target.value.replace(/[^0-9]/g, ''); u('bankBranch', v); }} dir="ltr" inputMode="numeric" />
+            <NumericInput value={settings.bankBranch} onChange={v => u('bankBranch', v)} placeholder="" />
           </div>
           <div className="form-group full">
             <label className="form-label">מספר חשבון</label>
-            <input className="form-input" value={settings.bankAccount} onChange={e => { const v = e.target.value.replace(/[^0-9]/g, ''); u('bankAccount', v); }} dir="ltr" inputMode="numeric" />
+            <NumericInput value={settings.bankAccount} onChange={v => u('bankAccount', v)} placeholder="" />
           </div>
         </Section>
 
-        {/* Quote Defaults - Houzz Pro inspired */}
         <Section title="ברירות מחדל להצעות" icon="📋">
           <div className="form-group">
             <label className="form-label">רווח קבלני (%)</label>
@@ -196,11 +215,10 @@ export default function Settings() {
           </div>
           <div className="form-group full">
             <label className="form-label">הערות קבועות להצעה</label>
-            <textarea className="form-input" rows={3} value={settings.notes} onChange={e => u('notes', e.target.value)} placeholder="טקסט שיופיע בתחתית כל הצעת מחיר (תנאים, אחריות, הבהרות)" />
+            <textarea className="form-input" rows={3} value={settings.notes} onChange={e => u('notes', e.target.value)} placeholder="טקסט שיופיע בתחתית כל הצעת מחיר" />
           </div>
         </Section>
 
-        {/* Backup & System */}
         <Section title="גיבוי ומערכת" icon="💾">
           <div className="form-group full">
             <div style={{ display: 'flex', gap: 12, alignItems: 'center', flexWrap: 'wrap' }}>
@@ -218,7 +236,6 @@ export default function Settings() {
             </div>
           </div>
         </Section>
-
       </div>
     </>
   );
