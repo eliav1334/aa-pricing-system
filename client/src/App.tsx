@@ -6,6 +6,7 @@ import Projects from './pages/Projects';
 import ProjectDetail from './pages/ProjectDetail';
 import Prices from './pages/Prices';
 import Settings from './pages/Settings';
+import Knowledge from './pages/Knowledge';
 
 export default function App() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -25,6 +26,7 @@ export default function App() {
               <Route path="/projects" element={<Projects />} />
               <Route path="/projects/:id" element={<ProjectDetail />} />
               <Route path="/prices" element={<Prices />} />
+              <Route path="/knowledge" element={<Knowledge />} />
               <Route path="/settings" element={<Settings />} />
             </Routes>
           </div>

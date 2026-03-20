@@ -6,6 +6,10 @@ import costsRouter from './routes/costs.js';
 import pricesRouter from './routes/prices.js';
 import statsRouter from './routes/stats.js';
 import documentsRouter from './routes/documents.js';
+import supplierQuotesRouter from './routes/supplier-quotes.js';
+import suppliersRouter from './routes/suppliers.js';
+import knowledgeRouter from './routes/knowledge.js';
+import './seed-knowledge.js';
 
 const app = express();
 const PORT = 3002;
@@ -20,6 +24,9 @@ app.use('/api/costs', costsRouter);
 app.use('/api/prices', pricesRouter);
 app.use('/api/stats', statsRouter);
 app.use('/api/documents', documentsRouter);
+app.use('/api/supplier-quotes', supplierQuotesRouter);
+app.use('/api/suppliers', suppliersRouter);
+app.use('/api/knowledge', knowledgeRouter);
 
 // Health check
 app.get('/api/health', (_req, res) => {

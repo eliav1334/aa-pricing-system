@@ -7,6 +7,7 @@ const NAV = [
   { path: '/', label: 'דשבורד', ico: '📊' },
   { path: '/projects', label: 'פרויקטים', ico: '🏗' },
   { path: '/prices', label: 'מחירון', ico: '☰' },
+  { path: '/knowledge', label: 'בסיס ידע', ico: '🧠' },
   { path: '/settings', label: 'הגדרות', ico: '⚙' },
 ];
 
