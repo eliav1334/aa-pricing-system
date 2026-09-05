@@ -1,7 +1,22 @@
 import { Router } from 'express';
 import db from '../db.js';
+import { readFileSync } from 'fs';
+import { join, dirname } from 'path';
+import { fileURLToPath } from 'url';
 
+const __dirname = dirname(fileURLToPath(import.meta.url));
 const router = Router();
+
+// Load logo once at startup and convert to base64 data URI
+let logoDataUri: string;
+try {
+  const logoPath = join(__dirname, '..', 'assets', 'logo.png');
+  const logoBuffer = readFileSync(logoPath);
+  logoDataUri = `data:image/png;base64,${logoBuffer.toString('base64')}`;
+} catch (e) {
+  console.warn('Failed to load logo, using fallback');
+  logoDataUri = ''; // Will use onerror fallback in HTML
+}
 
 /**
  * GET /api/export/quote/:projectId
@@ -140,10 +155,10 @@ function generateQuoteHTML(data: QuoteData): string {
     }
     
     .company-logo {
-      height: 80px;
+      height: 56px;
       width: auto;
       object-fit: contain;
-      filter: brightness(0) invert(1);
+      max-width: 200px;
     }
     
     .company-text {
@@ -365,7 +380,7 @@ function generateQuoteHTML(data: QuoteData): string {
     <!-- Header -->
     <div class="header">
       <div class="logo-section">
-        <img src="data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTIwIiBoZWlnaHQ9IjgwIiB2aWV3Qm94PSIwIDAgMTIwIDgwIiB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciPgogIDwhLS0gQmFja2dyb3VuZCAtLT4KICA8cmVjdCB3aWR0aD0iMTIwIiBoZWlnaHQ9IjgwIiBmaWxsPSJ0cmFuc3BhcmVudCIvPgogIAogIDwhLS0gRHJpbGwgSWNvbiAtLT4KICA8Zz4KICAgIDwhLS0gRHJpbGwgQml0IC0tPgogICAgPHJlY3QgeD0iNTUiIHk9IjEwIiB3aWR0aD0iMTAiIGhlaWdodD0iNTAiIGZpbGw9IiNGRkZGRkYiIHJ4PSIyIi8+CiAgICA8cG9seWdvbiBwb2ludHM9IjU1LDYwIDYwLDcwIDY1LDYwIiBmaWxsPSIjRkZGRkZGIi8+CiAgICAKICAgIDwhLS0gRHJpbGwgSGFuZGxlIC0tPgogICAgPGNpcmNsZSBjeD0iNjAiIGN5PSIyMCIgcj0iNiIgZmlsbD0ibm9uZSIgc3Ryb2tlPSIjRkZGRkZGIiBzdHJva2Utd2lkdGg9IjIiLz4KICAgIDxjaXJjbGUgY3g9IjYwIiBjeT0iMzAiIHI9IjYiIGZpbGw9Im5vbmUiIHN0cm9rZT0iI0ZGRkZGRiIgc3Ryb2tlLXdpZHRoPSIyIi8+CiAgICA8Y2lyY2xlIGN4PSI2MCIgY3k9IjQwIiByPSI2IiBmaWxsPSJub25lIiBzdHJva2U9IiNGRkZGRkYiIHN0cm9rZS13aWR0aD0iMiIvPgogIDwvZz4KICAKICA8IS0tIEJ1aWxkaW5nIEljb24gLS0+CiAgPGc+CiAgICA8cmVjdCB4PSI4NSIgeT0iMzAiIHdpZHRoPSIzMCIgaGVpZ2h0PSI0MCIgZmlsbD0ibm9uZSIgc3Ryb2tlPSIjRkZGRkZGIiBzdHJva2Utd2lkdGg9IjIiLz4KICAgIDxyZWN0IHg9Ijg4IiB5PSIzNSIgd2lkdGg9IjYiIGhlaWdodD0iNiIgZmlsbD0iI0ZGRkZGRiIvPgogICAgPHJlY3QgeD0iOTciIHk9IjM1IiB3aWR0aD0iNiIgaGVpZ2h0PSI2IiBmaWxsPSIjRkZGRkZGIi8+CiAgICA8cmVjdCB4PSIxMDYiIHk9IjM1IiB3aWR0aD0iNiIgaGVpZ2h0PSI2IiBmaWxsPSIjRkZGRkZGIi8+CiAgICA8cmVjdCB4PSI4OCIgeT0iNDUiIHdpZHRoPSI2IiBoZWlnaHQ9IjYiIGZpbGw9IiNGRkZGRkYiLz4KICAgIDxyZWN0IHg9Ijk3IiB5PSI0NSIgd2lkdGg9IjYiIGhlaWdodD0iNiIgZmlsbD0iI0ZGRkZGRiIvPgogICAgPHJlY3QgeD0iMTA2IiB5PSI0NSIgd2lkdGg9IjYiIGhlaWdodD0iNiIgZmlsbD0iI0ZGRkZGRiIvPgogICAgPHJlY3QgeD0iODgiIHk9IjU1IiB3aWR0aD0iNiIgaGVpZ2h0PSI2IiBmaWxsPSIjRkZGRkZGIi8+CiAgICA8cmVjdCB4PSI5NyIgeT0iNTUiIHdpZHRoPSI2IiBoZWlnaHQ9IjYiIGZpbGw9IiNGRkZGRkYiLz4KICAgIDxyZWN0IHg9IjEwNiIgeT0iNTUiIHdpZHRoPSI2IiBoZWlnaHQ9IjYiIGZpbGw9IiNGRkZGRkYiLz4KICA8L2c+CiAgCiAgPCEtLSBXYXRlciB3YXZlcyAtLT4KICA8cGF0aCBkPSJNIDUgNzAgUSAxNSA2NSAyNSA3MCBUIDQ1IDcwIFQgNjUgNzAgVCA4NSA3MCBUIDEwNSA3MCIgc3Ryb2tlPSIjRkZGRkZGIiBzdHJva2Utd2lkdGg9IjIiIGZpbGw9Im5vbmUiLz4KPC9zdmc+" 
+        <img src="${logoDataUri}" 
              alt="א.א קידוחים ופיתוח" 
              class="company-logo"
              onerror="this.style.display='none'"/>
