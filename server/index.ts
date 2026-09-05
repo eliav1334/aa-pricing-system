@@ -9,6 +9,7 @@ import documentsRouter from './routes/documents.js';
 import supplierQuotesRouter from './routes/supplier-quotes.js';
 import suppliersRouter from './routes/suppliers.js';
 import knowledgeRouter from './routes/knowledge.js';
+import exportRouter from './routes/export.js';
 import './seed-knowledge.js';
 
 const app = express();
@@ -27,6 +28,7 @@ app.use('/api/documents', documentsRouter);
 app.use('/api/supplier-quotes', supplierQuotesRouter);
 app.use('/api/suppliers', suppliersRouter);
 app.use('/api/knowledge', knowledgeRouter);
+app.use('/api/export', exportRouter);
 
 // Health check
 app.get('/api/health', (_req, res) => {

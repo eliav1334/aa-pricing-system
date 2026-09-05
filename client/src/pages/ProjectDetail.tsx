@@ -710,9 +710,30 @@ export default function ProjectDetail() {
 
           {/* Actions */}
           <div style={{ display: 'flex', gap: 12 }}>
-            <button style={{ fontFamily: T.f, padding: '12px 28px', borderRadius: 14, border: 'none', background: `linear-gradient(135deg, ${T.cta}, #EA580C)`, color: '#fff', fontSize: 15, fontWeight: 700, cursor: 'pointer', boxShadow: '0 4px 16px rgba(249,115,22,.25)' }}>📄 ייצוא PDF</button>
-            <button style={{ fontFamily: T.f, padding: '12px 28px', borderRadius: 14, border: `1.5px solid ${T.border}`, background: T.card, color: T.text2, fontSize: 15, fontWeight: 600, cursor: 'pointer' }}>📧 שלח ללקוח</button>
-            <button style={{ fontFamily: T.f, padding: '12px 28px', borderRadius: 14, border: `1.5px solid ${T.border}`, background: T.card, color: T.text2, fontSize: 15, fontWeight: 600, cursor: 'pointer' }}>📱 שתף WhatsApp</button>
+            <button 
+              onClick={() => {
+                const url = `/api/export/quote/${id}`;
+                window.open(url, '_blank');
+              }}
+              style={{ fontFamily: T.f, padding: '12px 28px', borderRadius: 14, border: 'none', background: `linear-gradient(135deg, ${T.cta}, #EA580C)`, color: '#fff', fontSize: 15, fontWeight: 700, cursor: 'pointer', boxShadow: '0 4px 16px rgba(249,115,22,.25)' }}>
+              📄 ייצוא הצעת מחיר
+            </button>
+            <button 
+              onClick={() => {
+                showToast('בקרוב - שליחה אוטומטית ללקוח במייל');
+              }}
+              style={{ fontFamily: T.f, padding: '12px 28px', borderRadius: 14, border: `1.5px solid ${T.border}`, background: T.card, color: T.text2, fontSize: 15, fontWeight: 600, cursor: 'pointer' }}>
+              📧 שלח ללקוח
+            </button>
+            <button 
+              onClick={() => {
+                const url = `/api/export/quote/${id}`;
+                const message = `הצעת מחיר לפרויקט: ${proj.name}\nלפרטים: ${window.location.origin}${url}`;
+                window.open(`https://wa.me/?text=${encodeURIComponent(message)}`, '_blank');
+              }}
+              style={{ fontFamily: T.f, padding: '12px 28px', borderRadius: 14, border: `1.5px solid ${T.border}`, background: T.card, color: T.text2, fontSize: 15, fontWeight: 600, cursor: 'pointer' }}>
+              📱 שתף WhatsApp
+            </button>
           </div>
         </div>
       )}
